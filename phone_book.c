@@ -1,4 +1,3 @@
-
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -122,3 +121,176 @@ FILE *open_db_file()
     }
     return fp;
 }
+  
+void free_entries(entry *p) 
+{
+    entry *del = NULL;
+
+    while(p != NULL)
+    {
+        del = p;
+        p = p->next;
+        free(del);
+    }
+}
+
+void print_usage(char *message, char *progname) 
+{
+    printf("Error : %s\n", message);
+    printf("Usage: %s command arguments\n", progname);
+    printf("\nAvailable commands: \n-------------------\n");
+    printf("add name phonenumber\n");
+    printf("    Used to add a new name to the database.\n    name and phone number should not have any\n    spaces in them\n");
+    printf("search name\n");
+    printf("    Prints the phone number of the given name\n    if it's there in the database. Prints\n    'no match' if not found\n");
+    printf("list\n");
+    printf("    Lists all names and phone numbers in the\n    system along with a total count at the end.\n");
+    printf("delete name\n");
+    printf("    Deletes the entry for the name in the database.\n    Prints 'no match' if there's no such name.\n");
+}
+
+entry * create_entry_node(char *name, char *phone) 
+{
+    entry *ret;
+    ret = malloc(sizeof(entry));
+    strcpy(ret->name, name);
+    strcpy(ret->phone, phone);
+    ret->next = NULL;
+    return ret;
+}
+
+
+entry *load_entries(FILE *fp) 
+{
+    char name[20], phone[20];
+    memset(name, '\0', 20);
+    memset(phone, '\0', 20);
+    entry *ret = NULL;
+    entry *current = NULL;
+    entry *tmp = NULL;
+    /* Description of %20[^,\n]
+    % is the start of the specifier (like %s, %i etc.)
+    20 is the maximum number of characters that this will take. We
+    know that names and phone numbers will be 20 bytes maximum so
+    we limit it to that. %20s will read in 20 character strings
+    (including the , to separate the name and phone number. That's
+    why we use
+    [^,\n] Square brackets are used to indicate a set of allowed
+    characters [abc] means only a, b, or c. With the ^, it's
+    used to specify a set of disallowed characters. So [^abc]
+    means any character except a, b, or c. [^,] means any
+    character except a , [^,\n] means any character except a
+    comma(,) or a newline(\n).
+    %20[^,\n] will match a string of characters with a maximum length
+    of 20 characters that doesn't have a comma(,) or a newline(\n).
+    */        
+  
+    while(fscanf(fp, "%20[^,\n],%20[^,\n]\n", name, phone) != EOF) 
+    {
+        tmp = create_entry_node(name, phone);
+        if (ret == NULL)
+            ret = tmp;
+        else
+            current->next = tmp;
+        current = tmp;
+    }
+    return ret;
+}
+
+void write_all_entries(entry * p) 
+{
+    FILE *fp = fopen(DB, "w");
+    while (p != NULL) 
+    {
+        fprintf(fp, "%s,%s\n", p->name, p->phone);
+        p = p->next;
+    }
+    fclose(fp);
+}
+
+
+void add(char *name, char *phone) 
+{
+    FILE *fp = fopen(DB, "a");
+    fprintf(fp, "%s,%s\n", name, phone);
+    fclose(fp);
+}
+
+void list(FILE *db_file) 
+{
+    int count = 0;
+
+    entry *p = load_entries(db_file);
+    entry *base = p;
+    while(p!=NULL) 
+    {
+        printf("%-20s : %10s\n", p->name, p->phone);
+        p=p->next;
+        count++;
+    }
+
+    printf("Total entries :  %d\n",count);
+
+    free_entries(base);
+}
+
+
+int delete(FILE *db_file, char *name) 
+{
+    entry *p = load_entries(db_file);
+    entry *base = p;
+    entry *prev = NULL;
+    entry del = NULL ; / Node to be deleted */
+    int deleted = 0;
+    while(p!=NULL) 
+    {
+        if(strcmp(p->name, name) == 0) 
+        {
+            if(p == base)
+            {
+                base = p->next;
+                del = p;
+                free(del);
+                deleted = 1;
+                break;
+            }
+            else
+            {
+                del = p; 
+                prev->next = p->next;
+                free(del);
+                deleted = 1;
+                break;
+            }
+        }
+        
+        prev = p;
+        p = p->next;
+    }
+
+    write_all_entries(base);
+    free_entries(base);
+    return deleted;
+}
+
+int search(FILE *db_file, char *name)
+{
+    entry *p = load_entries(db_file);
+    entry *base = p;
+    int search = 0;
+
+    while(p!=NULL) 
+    {
+        if(strcmp(p->name, name) == 0) 
+        {
+            printf("%s\n",p->phone);
+            search = 1;
+        }
+        
+        p = p->next;
+    }
+
+    free_entries(base);
+    return search;
+}
+
